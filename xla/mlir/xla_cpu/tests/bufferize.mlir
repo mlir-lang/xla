@@ -2,7 +2,7 @@
 // RUN:   -one-shot-bufferize | FileCheck %s
 
 fn tensor<10xf32> max_reduce(tensor<10xf32> arg0):
-    let tensor<10xf32> _0 = tensor.empty()
+    let tensor<10xf32> _0 = tensor::empty()
     let tensor<10xf32> _1 = xla_cpu::all_reduce(arg0, _0) {
         channel_handle = 5 : i64,
         reduction_kind = 3 : i32,
