@@ -76,7 +76,6 @@ filegroup(
         "stream.h",
         "stream_executor.h",
         "stream_executor_internal.h",  # TODO(ezhulenev): Remove private header
-        "stream_executor_pimpl.h",  # TODO(ezhulenev): Remove private header
         "temporary_device_memory.h",
         "temporary_memory_manager.h",
         "trace_listener.h",
@@ -133,7 +132,9 @@ cc_library(
         ":stream_executor_api_headers",
         ":stream_executor_plugin_headers",
     ],
-    deps = STREAM_EXECUTOR_DEPENDENCIES + if_static([
+    deps = STREAM_EXECUTOR_DEPENDENCIES + [
+        ":stream_executor_pimpl",
+    ] + if_static([
         ":stream_executor_impl",
         "@com_google_protobuf//:protobuf",  # indirectly-used by dnn.h
     ]),
@@ -175,7 +176,10 @@ cc_library(
 cc_library(
     name = "device_memory",
     hdrs = ["device_memory.h"],
-    deps = ["//xla/stream_executor/platform"],
+    deps = [
+        "//xla/stream_executor/platform",
+        "@com_google_absl//absl/log:check",
+    ],
 )
 
 # TODO(ezhulenev): Merge this target into `stream_executor`.
@@ -369,6 +373,7 @@ cc_library(
 cc_library(
     name = "stream_executor_headers",
     hdrs = [
+        "stream_executor_pimpl.h",  # TODO(ezhulenev): Remove internal header
         ":stream_executor_api_headers",
         ":stream_executor_plugin_headers",
     ],
@@ -427,7 +432,7 @@ cc_library(
         ],
         "//conditions:default": [],
     }),
-    visibility = [":internal"],
+    visibility = ["//visibility:private"],
     deps = [
         ":stream_executor_headers",
         ":stream_executor_internal",
@@ -494,7 +499,7 @@ cc_library(
     name = "kernel",
     srcs = ["kernel.cc"],
     hdrs = ["kernel.h"],
-    visibility = [":internal"],
+    visibility = ["//visibility:private"],
     deps = [
         ":device_memory",
         ":platform",

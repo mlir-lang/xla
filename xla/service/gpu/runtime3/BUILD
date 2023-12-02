@@ -18,10 +18,28 @@ package_group(
 #===-------------------------------------------------------------------------------------------===//
 
 cc_library(
+    name = "command_buffer_allocations",
+    srcs = ["command_buffer_allocations.cc"],
+    hdrs = ["command_buffer_allocations.h"],
+    deps = [
+        "//xla:status",
+        "//xla:statusor",
+        "//xla/service:buffer_assignment",
+        "//xla/service/gpu:buffer_allocations",
+        "//xla/stream_executor",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "command_buffer_cmd",
     srcs = ["command_buffer_cmd.cc"],
     hdrs = ["command_buffer_cmd.h"],
     deps = [
+        ":command_buffer_allocations",
         "//xla:status",
         "//xla:statusor",
         "//xla:types",
@@ -38,9 +56,24 @@ cc_library(
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@tsl//tsl/platform:errors",
         "@tsl//tsl/platform:status",
+        "@tsl//tsl/platform:statusor",
+    ],
+)
+
+cc_library(
+    name = "command_buffer_cmd_emitter",
+    srcs = ["command_buffer_cmd_emitter.cc"],
+    hdrs = ["command_buffer_cmd_emitter.h"],
+    deps = [
+        ":command_buffer_cmd",
+        "//xla:statusor",
+        "//xla:util",
+        "//xla/service/gpu:gpu_executable",
+        "//xla/service/gpu:thunk",
         "@tsl//tsl/platform:statusor",
     ],
 )
@@ -96,6 +129,7 @@ cc_library(
     srcs = ["command_buffer_thunk.cc"],
     hdrs = ["command_buffer_thunk.h"],
     deps = [
+        ":command_buffer_allocations",
         ":command_buffer_cmd",
         "//xla:status",
         "//xla:statusor",

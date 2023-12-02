@@ -79,7 +79,8 @@ cc_library(
 #         ":custom_fusion",
 #         ":custom_fusion_pattern",
 #         ":custom_kernel",
-#         ":cutlass_gemm_kernel",
+#         ":cutlass_gemm",
+#         ":cutlass_gemm_custom_kernel",
 #         "@com_google_absl//absl/status",
 #         "//xla:shape_util",
 #         "//xla:status",
@@ -102,8 +103,12 @@ cc_library(
 #         ":custom_fusion_pattern",
 #         ":cutlass_gemm_fusion",
 #         "@com_google_absl//absl/strings",
+#         "//xla:array",
+#         "//xla:array2d",
+#         "//xla:array3d",
 #         "//xla:debug_options_flags",
 #         "//xla:error_spec",
+#         "//xla:literal_util",
 #         "//xla/service/gpu:custom_fusion_rewriter",
 #         "//xla/tests:hlo_test_base",
 #         "@tsl//tsl/platform:test",
@@ -111,13 +116,23 @@ cc_library(
 #     ],
 # )
 #
+# #===--------------------------------------------------------------------------------------------===#
+# # CUTLASS Gemm <-> xla::gpu::kernel::CustomKernel adaptor
+# #===--------------------------------------------------------------------------------------------===#
+#
 # cuda_library(
-#     name = "cutlass_gemm_kernel",
-#     srcs = ["cutlass_gemm_kernel.cu.cc"],
-#     hdrs = ["cutlass_gemm_kernel.h"],
+#     name = "cutlass_gemm_custom_kernel",
+#     srcs = ["cutlass_gemm_custom_kernel.cu.cc"],
+#     hdrs = ["cutlass_gemm_custom_kernel.h"],
 #     visibility = ["//visibility:private"],
 #     deps = [
 #         ":custom_kernel",
+#         ":cutlass_gemm",
+#         ":cutlass_gemm_kernel",
+#         ":cutlass_gemm_kernels",
+#         ":cutlass_gemm_kernels_header",
+#         "@com_google_absl//absl/status",
+#         "@com_google_absl//absl/strings",
 #         "//third_party/gpus/cutlass",
 #         "//xla:statusor",
 #         "//xla:xla_data_proto_cc",
@@ -126,11 +141,11 @@ cc_library(
 # )
 #
 # xla_test(
-#     name = "cutlass_gemm_test",
-#     srcs = if_cuda_is_configured(["cutlass_gemm_test.cc"]),
+#     name = "cutlass_gemm_custom_kernel_test",
+#     srcs = if_cuda_is_configured(["cutlass_gemm_custom_kernel_test.cc"]),
 #     backends = ["gpu"],
 #     deps = [
-#         ":cutlass_gemm_kernel",
+#         ":cutlass_gemm_custom_kernel",
 #         "//xla:types",
 #         "//xla:xla_data_proto_cc",
 #         "//xla/stream_executor",
@@ -143,6 +158,74 @@ cc_library(
 #         "@tsl//tsl/platform:test_benchmark",
 #         "@tsl//tsl/platform:test_main",
 #     ],
+# )
+#
+# #===--------------------------------------------------------------------------------------------===#
+# # CUTLASS GemmUniversal-base kernels <-> StreamExecutor adaptor
+# #===--------------------------------------------------------------------------------------------===#
+#
+# cc_library(
+#     name = "cutlass_gemm",
+#     hdrs = ["cutlass_gemm.h"],
+# )
+#
+# cuda_library(
+#     name = "cutlass_gemm_kernel",
+#     hdrs = ["cutlass_gemm_kernel.cu.h"],
+#     visibility = ["//visibility:private"],
+#     deps = [
+#         ":cutlass_gemm",
+#         "@com_google_absl//absl/status",
+#         "@com_google_absl//absl/strings",
+#         "//third_party/gpus/cutlass",
+#         "//xla:statusor",
+#         "//xla/stream_executor",
+#     ],
+# )
+#
+# #===--------------------------------------------------------------------------------------------===#
+# # CUTLASS Gemm kernels implementation
+# #===--------------------------------------------------------------------------------------------===#
+#
+# # We split each individual kernel into a separate targets to compile them all in parallel. We also
+# # do not have any dependencies except CUTLASS itself to reduce the number of recompilations.
+#
+# cuda_library(
+#     name = "cutlass_gemm_kernels",
+#     visibility = ["//visibility:private"],
+#     deps = [
+#         ":cutlass_gemm_kernels_bf16xbf16_to_bf16",
+#         ":cutlass_gemm_kernels_f32xf32_to_f32",
+#     ],
+# )
+#
+# cuda_library(
+#     name = "cutlass_gemm_kernels_header",
+#     hdrs = ["cutlass_gemm_kernels.cu.h"],
+#     visibility = ["//visibility:private"],
+#     deps = [
+#         ":cutlass_gemm",
+#         "//third_party/gpus/cutlass",
+#     ],
+# )
+#
+# # CUTLASS requires all loops to be unrolled, and in some kernels defined below we force Clang/LLVM
+# # to unroll them with extra compiler options because by default LLVM is not as aggressive with loop
+# # unrolling as NVCC.
+#
+# cuda_library(
+#     name = "cutlass_gemm_kernels_bf16xbf16_to_bf16",
+#     srcs = ["cutlass_gemm_kernels_bf16xbf16_to_bf16.cu.cc"],
+#     copts = ["-mllvm -unroll-threshold=100000"],
+#     visibility = ["//visibility:private"],
+#     deps = [":cutlass_gemm_kernels_header"],
+# )
+#
+# cuda_library(
+#     name = "cutlass_gemm_kernels_f32xf32_to_f32",
+#     srcs = ["cutlass_gemm_kernels_f32xf32_to_f32.cu.cc"],
+#     visibility = ["//visibility:private"],
+#     deps = [":cutlass_gemm_kernels_header"],
 # )
 #
 # copybara:uncomment_end(google-only)

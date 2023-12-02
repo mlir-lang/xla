@@ -224,6 +224,7 @@ cc_library(
     visibility = [":friends"],
     deps = [
         ":compile_options_proto_cc",
+        ":executable_metadata_proto_cc",
         ":execute_options_proto_cc",
         ":pjrt_common",
         "//xla:shape_layout",
@@ -247,7 +248,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@tsl//tsl/platform:errors",
-        "@tsl//tsl/platform:protobuf",
         "@tsl//tsl/platform:statusor",
     ],
 )
@@ -372,10 +372,7 @@ cc_library(
     srcs = ["metrics.cc"],
     hdrs = ["metrics.h"],
     deps = [
-        "//xla/stream_executor",
-        "//xla/stream_executor/gpu:gpu_init",
         "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
         "@tsl//tsl/lib/monitoring:counter",
         "@tsl//tsl/lib/monitoring:gauge",
@@ -791,5 +788,14 @@ tf_proto_library(
 tf_proto_library(
     name = "execute_options_proto",
     srcs = ["execute_options.proto"],
+    visibility = ["//visibility:public"],
+)
+
+tf_proto_library(
+    name = "executable_metadata_proto",
+    srcs = ["executable_metadata.proto"],
+    protodeps = [
+        "//xla/service:hlo_proto",
+    ],
     visibility = ["//visibility:public"],
 )

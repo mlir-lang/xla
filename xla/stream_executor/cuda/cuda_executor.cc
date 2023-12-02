@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -239,6 +240,10 @@ tsl::Status GpuExecutor::GetKernel(const MultiKernelLoaderSpec& spec,
                                      cuda_kernel->gpu_function_ptr()));
   }
 
+  // Update CUDA kernel properties after it was loaded in the CUDA context.
+  cuda_kernel->set_name(*kernel_name);
+  cuda_kernel->set_gpu_context(context_);
+
   // We have to trust the kernel loader spec arity because there doesn't appear
   // to be a way to reflect on the number of expected arguments w/the CUDA API.
   cuda_kernel->set_arity(spec.arity());
@@ -444,10 +449,11 @@ tsl::Status GpuExecutor::Launch(Stream* stream, const ThreadDim& thread_dims,
     CHECK_EQ(kernel.Arity() + (packed.number_of_shared_bytes() > 0),
              packed.number_of_arguments());
     void** params = const_cast<void**>(packed.argument_addresses().data());
-    return GpuDriver::LaunchKernel(
-        context_, kernel.name(), cufunc, block_dims.x, block_dims.y,
-        block_dims.z, thread_dims.x, thread_dims.y, thread_dims.z,
-        args.number_of_shared_bytes(), custream, params, nullptr /* = extra */);
+    return GpuDriver::LaunchKernel(context_, kernel.name(), cufunc,
+                                   block_dims.x, block_dims.y, block_dims.z,
+                                   thread_dims.x, thread_dims.y, thread_dims.z,
+                                   packed.number_of_shared_bytes(), custream,
+                                   params, nullptr /* = extra */);
   };
 
   // If arguments are already packed we can just launch the kernel.
@@ -463,7 +469,8 @@ tsl::Status GpuExecutor::Launch(Stream* stream, const ThreadDim& thread_dims,
           "Kernel is missing a custom arguments packing function for device "
           "memory arguments array");
 
-    TF_ASSIGN_OR_RETURN(auto packed, pack(*device_mem));
+    KernelLaunchContext ctx(&kernel, block_dims, thread_dims);
+    TF_ASSIGN_OR_RETURN(auto packed, pack(ctx, *device_mem));
     return launch(*packed);
   }
 
